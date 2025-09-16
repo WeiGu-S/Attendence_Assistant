@@ -124,6 +124,11 @@ class AttendanceCalendar(QWidget):
         first_day = datetime(year, month, 1)
         first_weekday = first_day.weekday()
         
+        # 转换为以周日为起始的星期数（0=Sunday, 1=Monday, ..., 6=Saturday）
+        # Python的weekday(): 0=Monday, 6=Sunday
+        # 我们需要: 0=Sunday, 1=Monday, ..., 6=Saturday
+        first_weekday_sunday_start = (first_weekday + 1) % 7
+        
         # 获取该月天数
         days_in_month = calendar.monthrange(year, month)[1]
         
@@ -136,8 +141,8 @@ class AttendanceCalendar(QWidget):
         
         # 绘制日期单元格
         for day in range(1, days_in_month + 1):
-            # 计算位置
-            total_days = first_weekday + day - 1
+            # 计算位置（以周日为第一列）
+            total_days = first_weekday_sunday_start + day - 1
             row = total_days // 7
             col = total_days % 7
             
@@ -153,7 +158,7 @@ class AttendanceCalendar(QWidget):
     
     def _draw_weekday_headers(self, painter: QPainter):
         """绘制星期标题"""
-        weekdays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+        weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
         
         painter.setFont(QFont("Arial", 10, QFont.Bold))
         painter.setPen(QPen(self.colors['text']))
@@ -296,7 +301,10 @@ class AttendanceCalendar(QWidget):
         first_day = datetime(year, month, 1)
         first_weekday = first_day.weekday()
         
-        day = row * 7 + col - first_weekday + 1
+        # 转换为以周日为起始的星期数
+        first_weekday_sunday_start = (first_weekday + 1) % 7
+        
+        day = row * 7 + col - first_weekday_sunday_start + 1
         
         # 检查日期有效性
         days_in_month = calendar.monthrange(year, month)[1]

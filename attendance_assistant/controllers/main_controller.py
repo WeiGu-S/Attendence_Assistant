@@ -259,8 +259,8 @@ class MainController:
                 weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
                 weekday_str = weekdays[weekday_num]
                 
-                # 判断日期类型
-                day_type = '工作日' if weekday_num < 5 else '休息日'
+                # 判断日期类型（周日到周五为工作日）
+                day_type = '工作日' if weekday_num != 5 else '休息日'
                 
                 # 获取该日的数据
                 day_data = daily_data_map.get(day, {})

@@ -92,10 +92,12 @@ def get_weekday_chinese(date_str: str) -> str:
 
 
 def is_workday(date_str: str) -> bool:
-    """判断是否为工作日（周一到周五）"""
+    """判断是否为工作日（周日到周五）"""
     try:
         date_obj = datetime.strptime(date_str, "%Y-%m-%d")
-        return date_obj.weekday() < 5  # 0-4 为工作日
+        weekday = date_obj.weekday()  # 0=Monday, 6=Sunday
+        # 周日到周五为工作日：周日(6), 周一(0), 周二(1), 周三(2), 周四(3), 周五(4)
+        return weekday != 5  # 只有周六(5)不是工作日
     except ValueError:
         return False
 
