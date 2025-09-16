@@ -173,6 +173,7 @@ class MainController:
     def _extract_weekday(self, text: str) -> str:
         """提取星期信息"""
         weekday_patterns = {
+            r'周日|星期日|周天|星期天': '周日',
             r'周一|星期一': '周一',
             r'周二|星期二': '周二', 
             r'周三|星期三': '周三',
@@ -253,14 +254,14 @@ class MainController:
             for day in range(1, days_in_month + 1):
                 date_str = f"{year:04d}-{month:02d}-{day:02d}"
                 date_obj = datetime(year, month, day)
-                weekday_num = date_obj.weekday()  # 0=Monday, 6=Sunday
+                weekday_num = date_obj.weekday()  # 0=Sunday, 6=Monday
                 
                 # 转换为中文星期
-                weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+                weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
                 weekday_str = weekdays[weekday_num]
                 
-                # 判断日期类型（周日到周五为工作日）
-                day_type = '工作日' if weekday_num != 5 else '休息日'
+                # 判断日期类型
+                day_type = '工作日' if weekday_num < 6 else '休息日'
                 
                 # 获取该日的数据
                 day_data = daily_data_map.get(day, {})
