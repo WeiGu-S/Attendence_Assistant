@@ -165,7 +165,7 @@ class AttendanceCalendar(QWidget):
         
         for i, weekday in enumerate(weekdays):
             x = self.margin + i * self.cell_width
-            y = self.margin
+            y = self.margin + self.header_height
             rect = QRect(x, y, self.cell_width, self.header_height)
             painter.drawText(rect, Qt.AlignCenter, weekday)
     
