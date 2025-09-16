@@ -84,6 +84,10 @@ class MainController:
             # 按行处理单元格
             rows = self._group_cells_by_row(cells)
             
+            # 首先尝试从整个图像的左上角区域提取年月信息
+            if not attendance_data['year_month']:
+                attendance_data['year_month'] = self._extract_year_month_from_header(original_image)
+            
             for row_idx, row_cells in enumerate(rows):
                 for cell in row_cells:
                     # 提取单元格图像
@@ -100,9 +104,16 @@ class MainController:
                     
                     if cell_data:
                         if cell_data.get('type') == 'header' and cell_data.get('year_month'):
-                            attendance_data['year_month'] = cell_data['year_month']
+                            # 如果还没有年月信息，使用单元格中的
+                            if not attendance_data['year_month']:
+                                attendance_data['year_month'] = cell_data['year_month']
                         elif cell_data.get('type') == 'daily':
                             attendance_data['daily_records'].append(cell_data)
+            
+            # 如果仍然没有年月信息，尝试从所有文本中提取
+            if not attendance_data['year_month']:
+                attendance_data['year_month'] = self._extract_year_month_from_all_texts(original_image)
+            
             return attendance_data
             
         except Exception as e:
@@ -131,40 +142,70 @@ class MainController:
         try:
             # 合并所有文本
             combined_text = ' '.join(texts)
+            self.logger.debug(f"解析单元格内容 [{row},{col}]: {combined_text}")
             
             # 检查是否是标题行（包含年月信息）
-            year_month_match = re.search(r'(\d{4})年(\d{1,2})月', combined_text)
-            if year_month_match:
-                year = int(year_month_match.group(1))
-                month = int(year_month_match.group(2))
-                return {
-                    'type': 'header',
-                    'year_month': f"{year:04d}-{month:02d}"
-                }
+            # 多种年月匹配模式
+            year_month_patterns = [
+                r'(\d{4})年(\d{1,2})月',
+                r'(\d{4})\s*年\s*(\d{1,2})\s*月',
+                r'(\d{4})-(\d{1,2})',
+                r'(\d{4})\.(\d{1,2})',
+                r'(\d{4})/(\d{1,2})',
+            ]
+            
+            for pattern in year_month_patterns:
+                year_month_match = re.search(pattern, combined_text)
+                if year_month_match:
+                    try:
+                        year = int(year_month_match.group(1))
+                        month = int(year_month_match.group(2))
+                        if 2020 <= year <= 2030 and 1 <= month <= 12:
+                            self.logger.info(f"在单元格[{row},{col}]中找到年月信息: {year}年{month}月")
+                            return {
+                                'type': 'header',
+                                'year_month': f"{year:04d}-{month:02d}"
+                            }
+                    except (ValueError, IndexError):
+                        continue
             
             # 检查是否包含日期信息
             date_match = re.search(r'(\d{1,2})日?', combined_text)
             if date_match:
-                day = int(date_match.group(1))
-                
-                # 提取星期信息
-                weekday = self._extract_weekday(combined_text)
-                
-                # 提取时间信息
-                times = self._extract_times(combined_text)
-                
-                # 根据圆点确定状态
-                status = self._determine_status_from_dots(dots)
-                
-                return {
-                    'type': 'daily',
-                    'day': day,
-                    'weekday': weekday,
-                    'times': times,
-                    'status': status,
-                    'row': row,
-                    'col': col
-                }
+                try:
+                    day = int(date_match.group(1))
+                    if 1 <= day <= 31:  # 合理性检查
+                        # 提取星期信息
+                        weekday = self._extract_weekday(combined_text)
+                        
+                        # 提取时间信息
+                        times = self._extract_times(combined_text)
+                        
+                        # 根据圆点确定状态
+                        status = self._determine_status_from_dots(dots)
+                        
+                        return {
+                            'type': 'daily',
+                            'day': day,
+                            'weekday': weekday,
+                            'times': times,
+                            'status': status,
+                            'row': row,
+                            'col': col
+                        }
+                except (ValueError, IndexError):
+                    pass
+            
+            # 如果是第一行或第一列，可能包含标题信息
+            if row == 0 or col == 0:
+                # 检查是否包含月份相关的关键词
+                month_keywords = ['月', '年', '考勤', '打卡', '出勤']
+                if any(keyword in combined_text for keyword in month_keywords):
+                    self.logger.debug(f"单元格[{row},{col}]可能包含标题信息: {combined_text}")
+                    return {
+                        'type': 'header',
+                        'text': combined_text
+                    }
             
             return None
             
@@ -233,6 +274,87 @@ class MainController:
                 status['clock_out_status'] = '异常'
         
         return status
+    
+    def _extract_year_month_from_header(self, original_image) -> Optional[str]:
+        """从图像左上角区域提取年月信息"""
+        try:
+            # 获取图像尺寸
+            height, width = original_image.shape[:2]
+            
+            # 提取左上角区域（大约图像的1/4区域）
+            header_height = min(height // 4, 200)  # 最多200像素高
+            header_width = min(width // 2, 400)   # 最多400像素宽
+            
+            header_region = original_image[0:header_height, 0:header_width]
+            
+            # 对头部区域进行OCR识别
+            texts = self.ocr_service.recognize_text(header_region)
+            
+            # 使用OCR服务的日期提取功能
+            date_info = self.ocr_service.extract_date_info(texts)
+            
+            if date_info.get('year') and date_info.get('month'):
+                year = date_info['year']
+                month = date_info['month']
+                year_month = f"{year:04d}-{month:02d}"
+                self.logger.info(f"从头部区域提取到年月信息: {year_month}")
+                return year_month
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"从头部区域提取年月信息失败: {str(e)}")
+            return None
+    
+    def _extract_year_month_from_all_texts(self, original_image) -> Optional[str]:
+        """从整个图像的所有文本中提取年月信息"""
+        try:
+            # 对整个图像进行OCR识别
+            texts = self.ocr_service.recognize_text(original_image)
+            
+            # 使用OCR服务的日期提取功能
+            date_info = self.ocr_service.extract_date_info(texts)
+            
+            if date_info.get('year') and date_info.get('month'):
+                year = date_info['year']
+                month = date_info['month']
+                year_month = f"{year:04d}-{month:02d}"
+                self.logger.info(f"从全图文本提取到年月信息: {year_month}")
+                return year_month
+            
+            # 如果还是没有找到，尝试更宽松的匹配
+            combined_text = ' '.join(texts)
+            self.logger.debug(f"全图合并文本: {combined_text}")
+            
+            # 更宽松的年月匹配
+            import re
+            patterns = [
+                r'(\d{4})年(\d{1,2})月',
+                r'(\d{4})\s*年\s*(\d{1,2})\s*月',
+                r'(\d{4})-(\d{1,2})',
+                r'(\d{4})\.(\d{1,2})',
+                r'(\d{4})/(\d{1,2})',
+                r'(\d{4})(\d{2})',  # 202509
+            ]
+            
+            for pattern in patterns:
+                match = re.search(pattern, combined_text)
+                if match:
+                    try:
+                        year = int(match.group(1))
+                        month = int(match.group(2))
+                        if 2020 <= year <= 2030 and 1 <= month <= 12:
+                            year_month = f"{year:04d}-{month:02d}"
+                            self.logger.info(f"通过宽松匹配提取到年月信息: {year_month}")
+                            return year_month
+                    except (ValueError, IndexError):
+                        continue
+            
+            return None
+            
+        except Exception as e:
+            self.logger.error(f"从全图文本提取年月信息失败: {str(e)}")
+            return None
     
     def _validate_and_clean_attendance_data(self, attendance_data: Dict) -> Dict:
         """验证和清理考勤数据"""

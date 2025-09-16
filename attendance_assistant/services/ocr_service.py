@@ -102,37 +102,75 @@ class OCRService:
         """从OCR结果中提取日期信息"""
         date_info = {}
         
-        # 匹配年月信息（如：2023年10月）
-        year_month_pattern = r'(\d{4})年(\d{1,2})月'
-        # 匹配日期（如：1日、15日）
-        day_pattern = r'(\d{1,2})日'
-        # 匹配星期（如：周一、星期二）
-        weekday_pattern = r'周[一二三四五六日]|星期[一二三四五六日]'
+        # 多种年月匹配模式
+        year_month_patterns = [
+            r'(\d{4})年(\d{1,2})月',  # 2025年09月
+            r'(\d{4})年0?(\d{1,2})月',  # 2025年9月 或 2025年09月
+            r'(\d{4})\s*年\s*(\d{1,2})\s*月',  # 带空格的情况
+            r'(\d{4})-(\d{1,2})',  # 2025-09
+            r'(\d{4})\.(\d{1,2})',  # 2025.09
+            r'(\d{4})/(\d{1,2})',  # 2025/09
+        ]
         
-        for text in text_results:
-            # 尝试匹配年月
-            year_month_match = re.search(year_month_pattern, text)
+        # 匹配日期（如：1日、15日）
+        day_pattern = r'(\d{1,2})日?'
+        # 匹配星期（如：周一、星期二）
+        weekday_pattern = r'周[一二三四五六日天]|星期[一二三四五六日天]'
+        
+        # 合并所有文本进行整体匹配
+        combined_text = ' '.join(text_results)
+        self.logger.debug(f"合并文本用于日期提取: {combined_text}")
+        
+        # 优先匹配年月信息
+        for pattern in year_month_patterns:
+            year_month_match = re.search(pattern, combined_text)
             if year_month_match:
-                year = int(year_month_match.group(1))
-                month = int(year_month_match.group(2))
-                date_info['year'] = year
-                date_info['month'] = month
-                continue
+                try:
+                    year = int(year_month_match.group(1))
+                    month = int(year_month_match.group(2))
+                    if 2020 <= year <= 2030 and 1 <= month <= 12:  # 合理性检查
+                        date_info['year'] = year
+                        date_info['month'] = month
+                        self.logger.info(f"提取到年月信息: {year}年{month}月")
+                        break
+                except (ValueError, IndexError):
+                    continue
+        
+        # 逐个文本片段匹配其他信息
+        for text in text_results:
+            # 如果还没有年月信息，再次尝试匹配
+            if 'year' not in date_info or 'month' not in date_info:
+                for pattern in year_month_patterns:
+                    year_month_match = re.search(pattern, text)
+                    if year_month_match:
+                        try:
+                            year = int(year_month_match.group(1))
+                            month = int(year_month_match.group(2))
+                            if 2020 <= year <= 2030 and 1 <= month <= 12:
+                                date_info['year'] = year
+                                date_info['month'] = month
+                                self.logger.info(f"从单个文本提取到年月信息: {year}年{month}月")
+                                break
+                        except (ValueError, IndexError):
+                            continue
             
             # 尝试匹配日期
             day_match = re.search(day_pattern, text)
             if day_match:
-                day = int(day_match.group(1))
-                date_info['day'] = day
-                continue
+                try:
+                    day = int(day_match.group(1))
+                    if 1 <= day <= 31:  # 合理性检查
+                        date_info['day'] = day
+                except (ValueError, IndexError):
+                    continue
             
             # 尝试匹配星期
             weekday_match = re.search(weekday_pattern, text)
             if weekday_match:
                 weekday = weekday_match.group()
                 date_info['weekday'] = weekday
-                continue
         
+        self.logger.debug(f"提取的日期信息: {date_info}")
         return date_info
     
     def extract_time_info(self, text_results: List[str]) -> Dict:
