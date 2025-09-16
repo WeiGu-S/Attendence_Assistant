@@ -137,7 +137,7 @@ class AttendanceCalendar(QWidget):
         
         # 计算起始位置
         start_x = self.margin
-        start_y = self.margin + self.header_height
+        start_y = self.margin + self.header_height*2
         
         # 绘制日期单元格
         for day in range(1, days_in_month + 1):
