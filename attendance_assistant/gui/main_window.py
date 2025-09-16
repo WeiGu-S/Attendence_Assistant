@@ -4,12 +4,12 @@
 """
 import sys
 import os
-from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                             QPushButton, QLabel, QFileDialog, QMessageBox, 
                             QSplitter, QTextEdit, QGroupBox, QGridLayout,
                             QProgressBar, QStatusBar)
-from PyQt5.QtCore import Qt, QThread, pyqtSignal
-from PyQt5.QtGui import QFont, QIcon
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QFont, QIcon
 
 from ..controllers.main_controller import MainController
 from ..core.models import MonthlyAttendance
@@ -69,7 +69,7 @@ class MainWindow(QMainWindow):
         main_layout = QHBoxLayout(central_widget)
         
         # 创建分割器
-        splitter = QSplitter(Qt.Horizontal)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
         
         # 左侧控制面板
         self.control_panel = ControlPanel(self)
@@ -97,8 +97,8 @@ class MainWindow(QMainWindow):
         
         # 标题
         title_label = QLabel("考勤日历")
-        title_label.setFont(QFont("Arial", 16, QFont.Bold))
-        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
         
         # 考勤日历
@@ -353,11 +353,11 @@ class MainWindow(QMainWindow):
                 self, 
                 "确认退出", 
                 "图片正在处理中，确定要退出吗？",
-                QMessageBox.Yes | QMessageBox.No,
-                QMessageBox.No
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
             )
             
-            if reply == QMessageBox.Yes:
+            if reply == QMessageBox.StandardButton.Yes:
                 self.processing_thread.terminate()
                 self.processing_thread.wait()
                 event.accept()

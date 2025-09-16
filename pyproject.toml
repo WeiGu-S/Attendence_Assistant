@@ -14,7 +14,7 @@ authors = [
 maintainers = [
     {name = "Attendance Assistant Team", email = "dev@attendance-assistant.com"}
 ]
-keywords = ["attendance", "ocr", "image-processing", "desktop-app", "pyqt5"]
+keywords = ["attendance", "ocr", "image-processing", "desktop-app", "pyqt6"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: End Users/Desktop",
@@ -30,7 +30,7 @@ classifiers = [
     "Environment :: X11 Applications :: Qt",
 ]
 dependencies = [
-    "PyQt5>=5.15.10,<6.0.0",
+    "PyQt6>=6.4.0,<7.0.0",
     "paddleocr>=2.7.0,<3.0.0", 
     "opencv-python>=4.8.0,<5.0.0",
     "pandas>=2.0.0,<3.0.0",
@@ -147,7 +147,7 @@ module = [
     "numpy.*",
     "pandas.*",
     "openpyxl.*",
-    "PyQt5.*",
+    "PyQt6.*",
 ]
 ignore_missing_imports = true
 

@@ -83,41 +83,115 @@ class MainController:
         try:
             # 按行处理单元格
             rows = self._group_cells_by_row(cells)
+            self.logger.info(f"开始处理 {len(rows)} 行，共 {len(cells)} 个单元格")
             
             # 首先尝试从整个图像的左上角区域提取年月信息
             if not attendance_data['year_month']:
-                attendance_data['year_month'] = self._extract_year_month_from_header(original_image)
+                try:
+                    attendance_data['year_month'] = self._extract_year_month_from_header(original_image)
+                except Exception as e:
+                    self.logger.warning(f"从头部提取年月信息失败: {str(e)}")
+            
+            # 限制处理的单元格数量，避免内存问题
+            max_cells_to_process = 100  # 限制最多处理100个单元格
+            processed_count = 0
+            
+            # 如果单元格数量过多，临时禁用GPU以节省内存
+            if len(cells) > 30:
+                self.logger.info(f"检测到 {len(cells)} 个单元格，临时禁用GPU以节省内存")
+                try:
+                    # 重新初始化OCR服务，禁用GPU
+                    original_gpu_setting = self.config.getboolean('OCR', 'use_gpu', fallback=False)
+                    self.config.set('OCR', 'use_gpu', 'False')
+                    self.ocr_service = OCRService(self.config)
+                    # 恢复原始设置
+                    self.config.set('OCR', 'use_gpu', str(original_gpu_setting))
+                except Exception as gpu_e:
+                    self.logger.warning(f"禁用GPU失败: {str(gpu_e)}")
+            
+            processed_count = 0
             
             for row_idx, row_cells in enumerate(rows):
-                for cell in row_cells:
-                    # 提取单元格图像
-                    cell_image = self.image_processor.extract_cell_image(original_image, cell)
+                if processed_count >= max_cells_to_process:
+                    self.logger.warning(f"已处理 {processed_count} 个单元格，跳过剩余单元格以避免内存问题")
+                    break
                     
-                    # OCR识别文本
-                    texts = self.ocr_service.recognize_text(cell_image)
-                    
-                    # 检测圆点
-                    dots = self.image_processor.detect_dots(cell_image)
-                    
-                    # 解析单元格内容
-                    cell_data = self._parse_cell_content(texts, dots, row_idx, cell.col)
-                    
-                    if cell_data:
-                        if cell_data.get('type') == 'header' and cell_data.get('year_month'):
-                            # 如果还没有年月信息，使用单元格中的
-                            if not attendance_data['year_month']:
-                                attendance_data['year_month'] = cell_data['year_month']
-                        elif cell_data.get('type') == 'daily':
-                            attendance_data['daily_records'].append(cell_data)
+                for cell_idx, cell in enumerate(row_cells):
+                    if processed_count >= max_cells_to_process:
+                        break
+                        
+                    try:
+                        self.logger.debug(f"处理单元格 [{row_idx},{cell_idx}]: ({cell.x},{cell.y},{cell.width},{cell.height})")
+                        
+                        # 检查单元格尺寸是否合理
+                        if cell.width < 10 or cell.height < 10:
+                            self.logger.debug(f"跳过过小的单元格 [{row_idx},{cell_idx}]")
+                            continue
+                            
+                        if cell.width > 1000 or cell.height > 1000:
+                            self.logger.debug(f"跳过过大的单元格 [{row_idx},{cell_idx}]")
+                            continue
+                        
+                        # 提取单元格图像
+                        cell_image = self.image_processor.extract_cell_image(original_image, cell)
+                        
+                        if cell_image is None or cell_image.size == 0:
+                            self.logger.debug(f"跳过空的单元格图像 [{row_idx},{cell_idx}]")
+                            continue
+                        
+                        # OCR识别文本（添加异常处理）
+                        texts = []
+                        try:
+                            texts = self.ocr_service.recognize_text(cell_image)
+                        except Exception as ocr_e:
+                            self.logger.warning(f"单元格 [{row_idx},{cell_idx}] OCR识别失败: {str(ocr_e)}")
+                            texts = []
+                        
+                        # 检测圆点（添加异常处理）
+                        dots = []
+                        try:
+                            dots = self.image_processor.detect_dots(cell_image)
+                        except Exception as dot_e:
+                            self.logger.warning(f"单元格 [{row_idx},{cell_idx}] 圆点检测失败: {str(dot_e)}")
+                            dots = []
+                        
+                        # 解析单元格内容
+                        cell_data = self._parse_cell_content(texts, dots, row_idx, cell.col)
+                        
+                        if cell_data:
+                            if cell_data.get('type') == 'header' and cell_data.get('year_month'):
+                                # 如果还没有年月信息，使用单元格中的
+                                if not attendance_data['year_month']:
+                                    attendance_data['year_month'] = cell_data['year_month']
+                            elif cell_data.get('type') == 'daily':
+                                attendance_data['daily_records'].append(cell_data)
+                        
+                        processed_count += 1
+                        
+                        # 每处理10个单元格输出一次进度
+                        if processed_count % 10 == 0:
+                            self.logger.info(f"已处理 {processed_count} 个单元格")
+                            
+                    except Exception as cell_e:
+                        self.logger.error(f"处理单元格 [{row_idx},{cell_idx}] 时发生错误: {str(cell_e)}")
+                        continue
+            
+            self.logger.info(f"单元格处理完成，共处理 {processed_count} 个单元格")
             
             # 如果仍然没有年月信息，尝试从所有文本中提取
             if not attendance_data['year_month']:
-                attendance_data['year_month'] = self._extract_year_month_from_all_texts(original_image)
+                try:
+                    attendance_data['year_month'] = self._extract_year_month_from_all_texts(original_image)
+                except Exception as e:
+                    self.logger.warning(f"从全图提取年月信息失败: {str(e)}")
             
+            self.logger.info(f"提取到 {len(attendance_data['daily_records'])} 条日常记录")
             return attendance_data
             
         except Exception as e:
             self.logger.error(f"考勤数据提取失败: {str(e)}")
+            import traceback
+            self.logger.error(f"详细错误信息: {traceback.format_exc()}")
             return {}
     
     def _group_cells_by_row(self, cells: List[CellInfo]) -> List[List[CellInfo]]:

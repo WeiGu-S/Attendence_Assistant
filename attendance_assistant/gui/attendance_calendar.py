@@ -2,9 +2,9 @@
 考勤日历组件
 自定义日历部件，显示考勤状态
 """
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
-from PyQt5.QtCore import Qt, pyqtSignal, QRect, QDate
-from PyQt5.QtGui import QPainter, QPen, QBrush, QColor, QFont, QFontMetrics
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton
+from PyQt6.QtCore import Qt, pyqtSignal, QRect, QDate
+from PyQt6.QtGui import QPainter, QPen, QBrush, QColor, QFont, QFontMetrics
 from datetime import datetime, timedelta
 import calendar
 
@@ -50,8 +50,8 @@ class AttendanceCalendar(QWidget):
         self.prev_button = QPushButton("◀ 上月")
         self.next_button = QPushButton("下月 ▶")
         self.month_label = QLabel("请选择考勤图片")
-        self.month_label.setAlignment(Qt.AlignCenter)
-        self.month_label.setFont(QFont("Arial", 14, QFont.Bold))
+        self.month_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.month_label.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         
         nav_layout.addWidget(self.prev_button)
         nav_layout.addWidget(self.month_label)
@@ -110,7 +110,7 @@ class AttendanceCalendar(QWidget):
             return
         
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         # 绘制日历
         self._draw_calendar(painter)
@@ -160,14 +160,14 @@ class AttendanceCalendar(QWidget):
         """绘制星期标题"""
         weekdays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
         
-        painter.setFont(QFont("Arial", 10, QFont.Bold))
+        painter.setFont(QFont("Arial", 10, QFont.Weight.Bold))
         painter.setPen(QPen(self.colors['text']))
         
         for i, weekday in enumerate(weekdays):
             x = self.margin + i * self.cell_width
             y = self.margin + self.header_height
             rect = QRect(x, y, self.cell_width, self.header_height)
-            painter.drawText(rect, Qt.AlignCenter, weekday)
+            painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, weekday)
     
     def _draw_day_cell(self, painter: QPainter, x: int, y: int, day: int, day_data: DailyAttendance):
         """绘制日期单元格"""
@@ -186,11 +186,11 @@ class AttendanceCalendar(QWidget):
         painter.drawRect(rect)
         
         # 绘制日期数字
-        painter.setFont(QFont("Arial", 12, QFont.Bold))
+        painter.setFont(QFont("Arial", 12, QFont.Weight.Bold))
         painter.setPen(QPen(self.colors['text']))
         
         date_rect = QRect(x + 5, y + 5, self.cell_width - 10, 20)
-        painter.drawText(date_rect, Qt.AlignLeft | Qt.AlignTop, str(day))
+        painter.drawText(date_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, str(day))
         
         # 绘制考勤信息
         if day_data:
@@ -224,13 +224,13 @@ class AttendanceCalendar(QWidget):
         if day_data.clock_in.time:
             clock_in_rect = QRect(x + 5, y + 25, self.cell_width - 10, 15)
             clock_in_text = f"上: {day_data.clock_in.time}"
-            painter.drawText(clock_in_rect, Qt.AlignLeft, clock_in_text)
+            painter.drawText(clock_in_rect, Qt.AlignmentFlag.AlignLeft, clock_in_text)
         
         # 下班时间
         if day_data.clock_out.time:
             clock_out_rect = QRect(x + 5, y + 40, self.cell_width - 10, 15)
             clock_out_text = f"下: {day_data.clock_out.time}"
-            painter.drawText(clock_out_rect, Qt.AlignLeft, clock_out_text)
+            painter.drawText(clock_out_rect, Qt.AlignmentFlag.AlignLeft, clock_out_text)
         
         # 状态指示器
         self._draw_status_indicators(painter, x, y, day_data)
@@ -275,7 +275,7 @@ class AttendanceCalendar(QWidget):
     
     def mousePressEvent(self, event):
         """处理鼠标点击事件"""
-        if not self.attendance_data or event.button() != Qt.LeftButton:
+        if not self.attendance_data or event.button() != Qt.MouseButton.LeftButton:
             return
         
         # 计算点击的日期

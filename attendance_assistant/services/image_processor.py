@@ -107,11 +107,20 @@ class ImageProcessor:
             for contour in contours:
                 # 过滤掉太小的轮廓
                 area = cv2.contourArea(contour)
-                if area < 100:  # 最小面积阈值
+                if area < 500:  # 提高最小面积阈值，过滤掉表格线
                     continue
                 
                 # 获取边界矩形
                 x, y, w, h = cv2.boundingRect(contour)
+                
+                # 过滤掉太细的矩形（可能是表格线）
+                if w < 20 or h < 20:  # 最小宽度和高度
+                    continue
+                
+                # 过滤掉长宽比过于极端的矩形（可能是表格线）
+                aspect_ratio = max(w, h) / min(w, h)
+                if aspect_ratio > 20:  # 长宽比阈值
+                    continue
                 
                 # 创建单元格信息
                 cell = CellInfo(
@@ -184,10 +193,29 @@ class ImageProcessor:
         返回: 圆点信息列表
         """
         try:
+            # 检查输入图像
+            if cell_image is None or cell_image.size == 0:
+                self.logger.debug("输入图像为空，跳过圆点检测")
+                return []
+            
+            # 检查图像尺寸
+            if len(cell_image.shape) < 3:
+                self.logger.debug("图像不是彩色图像，跳过圆点检测")
+                return []
+            
+            height, width = cell_image.shape[:2]
+            if height < 10 or width < 10:
+                self.logger.debug(f"图像尺寸过小 ({width}x{height})，跳过圆点检测")
+                return []
+            
             dots = []
             
             # 转换到HSV颜色空间进行颜色检测
-            hsv = cv2.cvtColor(cell_image, cv2.COLOR_BGR2HSV)
+            try:
+                hsv = cv2.cvtColor(cell_image, cv2.COLOR_BGR2HSV)
+            except Exception as cvt_e:
+                self.logger.debug(f"颜色空间转换失败: {str(cvt_e)}")
+                return []
             
             # 定义绿色圆点的HSV范围
             green_lower = np.array([35, 50, 50])
@@ -198,60 +226,75 @@ class ImageProcessor:
             gray_upper = np.array([180, 50, 200])
             
             # 检测绿色圆点
-            green_mask = cv2.inRange(hsv, green_lower, green_upper)
-            green_contours, _ = cv2.findContours(green_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            for contour in green_contours:
-                # 过滤掉太小的轮廓
-                area = cv2.contourArea(contour)
-                if area < 10:  # 最小面积阈值
-                    continue
+            try:
+                green_mask = cv2.inRange(hsv, green_lower, green_upper)
+                green_contours, _ = cv2.findContours(green_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 
-                # 获取最小外接圆
-                (x, y), radius = cv2.minEnclosingCircle(contour)
-                center = (int(x), int(y))
-                radius = int(radius)
-                
-                # 计算圆度
-                perimeter = cv2.arcLength(contour, True)
-                if perimeter > 0:
-                    circularity = 4 * np.pi * area / (perimeter * perimeter)
-                    if circularity > 0.7:  # 圆度阈值
-                        dot = DotInfo(
-                            x=center[0], y=center[1], 
-                            color="green", radius=radius
-                        )
-                        dots.append(dot)
+                for contour in green_contours:
+                    try:
+                        # 过滤掉太小的轮廓
+                        area = cv2.contourArea(contour)
+                        if area < 10:  # 最小面积阈值
+                            continue
+                        
+                        # 获取最小外接圆
+                        (x, y), radius = cv2.minEnclosingCircle(contour)
+                        center = (int(x), int(y))
+                        radius = int(radius)
+                        
+                        # 计算圆度
+                        perimeter = cv2.arcLength(contour, True)
+                        if perimeter > 0:
+                            circularity = 4 * np.pi * area / (perimeter * perimeter)
+                            if circularity > 0.7:  # 圆度阈值
+                                dot = DotInfo(
+                                    x=center[0], y=center[1], 
+                                    color="green", radius=radius
+                                )
+                                dots.append(dot)
+                    except Exception as contour_e:
+                        self.logger.debug(f"处理绿色轮廓时出错: {str(contour_e)}")
+                        continue
+            except Exception as green_e:
+                self.logger.debug(f"绿色圆点检测失败: {str(green_e)}")
             
             # 检测灰色圆点
-            gray_mask = cv2.inRange(hsv, gray_lower, gray_upper)
-            gray_contours, _ = cv2.findContours(gray_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            for contour in gray_contours:
-                # 过滤掉太小的轮廓
-                area = cv2.contourArea(contour)
-                if area < 10:  # 最小面积阈值
-                    continue
+            try:
+                gray_mask = cv2.inRange(hsv, gray_lower, gray_upper)
+                gray_contours, _ = cv2.findContours(gray_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 
-                # 获取最小外接圆
-                (x, y), radius = cv2.minEnclosingCircle(contour)
-                center = (int(x), int(y))
-                radius = int(radius)
-                
-                # 计算圆度
-                perimeter = cv2.arcLength(contour, True)
-                if perimeter > 0:
-                    circularity = 4 * np.pi * area / (perimeter * perimeter)
-                    if circularity > 0.7:  # 圆度阈值
-                        dot = DotInfo(
-                            x=center[0], y=center[1], 
-                            color="gray", radius=radius
-                        )
-                        dots.append(dot)
+                for contour in gray_contours:
+                    try:
+                        # 过滤掉太小的轮廓
+                        area = cv2.contourArea(contour)
+                        if area < 10:  # 最小面积阈值
+                            continue
+                        
+                        # 获取最小外接圆
+                        (x, y), radius = cv2.minEnclosingCircle(contour)
+                        center = (int(x), int(y))
+                        radius = int(radius)
+                        
+                        # 计算圆度
+                        perimeter = cv2.arcLength(contour, True)
+                        if perimeter > 0:
+                            circularity = 4 * np.pi * area / (perimeter * perimeter)
+                            if circularity > 0.7:  # 圆度阈值
+                                dot = DotInfo(
+                                    x=center[0], y=center[1], 
+                                    color="gray", radius=radius
+                                )
+                                dots.append(dot)
+                    except Exception as contour_e:
+                        self.logger.debug(f"处理灰色轮廓时出错: {str(contour_e)}")
+                        continue
+            except Exception as gray_e:
+                self.logger.debug(f"灰色圆点检测失败: {str(gray_e)}")
             
             self.logger.debug(f"检测到 {len(dots)} 个圆点")
             return dots
             
         except Exception as e:
             self.logger.error(f"圆点检测失败: {str(e)}")
-            raise
+            # 不抛出异常，返回空列表
+            return []

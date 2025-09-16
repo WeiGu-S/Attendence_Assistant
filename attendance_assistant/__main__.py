@@ -7,8 +7,8 @@ import logging
 import logging.handlers
 import os
 from pathlib import Path
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtCore import Qt
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import Qt
 
 from .core.config_manager import ConfigManager
 from .gui.main_window import MainWindow
@@ -20,28 +20,55 @@ def setup_logging(config: ConfigManager):
     log_file = config.get('Logging', 'file_path', 'logs/app.log')
     max_file_size = config.getint('Logging', 'max_file_size', 10485760)
     backup_count = config.getint('Logging', 'backup_count', 5)
+    console_output = config.getboolean('Logging', 'console_output', True)
+    date_format = config.get('Logging', 'date_format', '%Y-%m-%d %H:%M:%S')
     
     # 确保日志目录存在
     log_path = Path(log_file)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     
+    # 清除现有的处理器
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+    
+    # 创建格式化器
+    formatter = logging.Formatter(
+        fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt=date_format
+    )
+    
+    # 创建处理器列表
+    handlers = []
+    
+    # 文件处理器
+    file_handler = logging.handlers.RotatingFileHandler(
+        log_file,
+        maxBytes=max_file_size,
+        backupCount=backup_count,
+        encoding='utf-8'
+    )
+    file_handler.setFormatter(formatter)
+    handlers.append(file_handler)
+    
+    # 控制台处理器（可选）
+    if console_output:
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(formatter)
+        handlers.append(console_handler)
+    
     # 配置日志
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.handlers.RotatingFileHandler(
-                log_file,
-                maxBytes=max_file_size,
-                backupCount=backup_count,
-                encoding='utf-8'
-            ),
-            logging.StreamHandler(sys.stdout)
-        ]
+        handlers=handlers,
+        force=True  # 强制重新配置
     )
     
     logger = logging.getLogger(__name__)
     logger.info("日志系统初始化完成")
+    logger.info(f"日志级别: {log_level}")
+    logger.info(f"日志文件: {log_file}")
+    logger.info(f"控制台输出: {'启用' if console_output else '禁用'}")
 
 
 def setup_directories(config: ConfigManager):
@@ -84,8 +111,9 @@ def load_styles(app: QApplication):
 def main():
     """主函数"""
     # 设置Qt应用程序属性（必须在创建QApplication之前）
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
-    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    # 注意：在 PyQt6 中，高DPI缩放默认启用，这些属性已被移除
+    # QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
+    # QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
     
     # 创建应用程序
     app = QApplication(sys.argv)
@@ -114,7 +142,7 @@ def main():
         main_window.show()
         
         # 运行应用程序
-        exit_code = app.exec_()
+        exit_code = app.exec()
         
         logger.info("考勤助手退出")
         return exit_code

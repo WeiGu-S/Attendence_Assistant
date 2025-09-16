@@ -2,12 +2,12 @@
 控制面板组件
 包含文件上传、数据导出、统计信息等功能
 """
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                             QLabel, QGroupBox, QGridLayout, QTextEdit, 
                             QComboBox, QLineEdit, QFileDialog, QMessageBox,
                             QFormLayout, QSpinBox, QCheckBox)
-from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QFont, QPixmap
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont, QPixmap
 import os
 
 from ..core.models import DailyAttendance
@@ -261,7 +261,7 @@ class ControlPanel(QWidget):
     def _on_confirmed_changed(self, state: int):
         """确认状态改变"""
         if self.current_day_data:
-            confirmed = state == Qt.Checked
+            confirmed = state == Qt.CheckState.Checked
             # 这里可以发送确认信号，或者直接更新
             # 暂时通过data_update_requested处理
             pass
