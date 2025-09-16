@@ -109,9 +109,8 @@ def main():
         logger = logging.getLogger(__name__)
         logger.info("考勤助手启动")
         
-        # 创建主窗口（使用简化版避免崩溃）
-        from .gui.simple_main_window import SimpleMainWindow
-        main_window = SimpleMainWindow()
+        # 创建主窗口
+        main_window = MainWindow()
         main_window.show()
         
         # 运行应用程序
