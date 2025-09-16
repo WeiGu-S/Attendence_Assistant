@@ -7,6 +7,9 @@ import re
 from datetime import datetime
 from typing import List, Dict, Optional
 import numpy as np
+import pytesseract
+from PIL import Image
+from paddleocr import PaddleOCR
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +27,12 @@ class OCRService:
     def _initialize_ocr(self):
         """初始化OCR引擎"""
         try:
-            from paddleocr import PaddleOCR
-            
             self.ocr_engine = PaddleOCR(
                 use_angle_cls=True,
                 lang="ch",
                 use_gpu=self.config.getboolean('OCR', 'use_gpu', fallback=False),
-                ocr_version='PP-OCRv3'
+                ocr_version='PP-OCRv3',
+                show_log=False  # 关闭详细日志输出
             )
             self.logger.info("OCR引擎初始化成功")
             
@@ -39,7 +41,8 @@ class OCRService:
             self.ocr_engine = None
         except Exception as e:
             self.logger.error(f"OCR引擎初始化失败: {str(e)}")
-            raise
+            # 不抛出异常，而是使用备用方案
+            self.ocr_engine = None
     
     def recognize_text(self, image: np.ndarray) -> List[str]:
         """识别图像中的文本"""
@@ -71,12 +74,28 @@ class OCRService:
     def _fallback_ocr(self, image: np.ndarray) -> List[str]:
         """备用OCR方案（当PaddleOCR不可用时）"""
         try:
-            # 这里可以集成Tesseract或其他OCR引擎
-            # 暂时返回空列表，实际使用时需要实现
-            self.logger.warning("使用备用OCR方案（未实现）")
+            # 将numpy数组转换为PIL Image
+            if len(image.shape) == 3:
+                # BGR转RGB
+                image_rgb = image[:, :, ::-1]
+                pil_image = Image.fromarray(image_rgb)
+            else:
+                pil_image = Image.fromarray(image)
+            # 使用Tesseract进行OCR识别
+            # 配置中文识别
+            custom_config = r'--oem 3 --psm 6 -l chi_sim+eng'
+            text = pytesseract.image_to_string(pil_image, config=custom_config)
+            
+            # 将识别结果按行分割并过滤空行
+            texts = [line.strip() for line in text.split('\n') if line.strip()]
+            
+            self.logger.info(f"Tesseract识别到 {len(texts)} 个文本片段")
+            return texts
+        except ImportError:
+            self.logger.error("pytesseract未安装，无法使用Tesseract OCR")
             return []
         except Exception as e:
-            self.logger.error(f"备用OCR失败: {str(e)}")
+            self.logger.error(f"Tesseract OCR失败: {str(e)}")
             return []
     
     def extract_date_info(self, text_results: List[str]) -> Dict:

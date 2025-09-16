@@ -3,6 +3,7 @@
 负责图像加载、预处理、表格检测和圆点识别
 """
 import logging
+import os
 import cv2
 import numpy as np
 from typing import List, Dict, Optional
@@ -42,10 +43,21 @@ class ImageProcessor:
     def load_image(self, image_path: str) -> np.ndarray:
         """加载图片并返回numpy数组"""
         try:
-            image = cv2.imread(image_path)
+            # 检查文件是否存在
+            if not os.path.exists(image_path):
+                raise FileNotFoundError(f"图片文件不存在: {image_path}")
+            
+            # 检查文件大小
+            file_size = os.path.getsize(image_path)
+            if file_size == 0:
+                raise ValueError(f"图片文件为空: {image_path}")
+            
+            # 使用cv2.IMREAD_COLOR确保加载彩色图像
+            image = cv2.imread(image_path, cv2.IMREAD_COLOR)
             if image is None:
-                raise ValueError(f"无法加载图片: {image_path}")
-            self.logger.info(f"成功加载图片: {image_path}, 尺寸: {image.shape}")
+                raise ValueError(f"无法加载图片，可能是不支持的格式: {image_path}")
+            
+            self.logger.info(f"成功加载图片: {image_path}, 尺寸: {image.shape}, 大小: {file_size} bytes")
             return image
         except Exception as e:
             self.logger.error(f"图片加载失败: {str(e)}")

@@ -1,0 +1,13 @@
+# 依赖
+# 使用 uv sync 或 pip install -e . 安装
+
+PyQt5>=5.15.10,<6.0.0
+paddleocr>=2.7.0,<3.0.0
+opencv-python>=4.8.0,<5.0.0
+pandas>=2.0.0,<3.0.0
+numpy>=1.24.0,<2.0.0
+openpyxl>=3.1.0,<4.0.0
+python-dateutil>=2.8.0,<3.0.0
+Pillow>=10.0.0,<11.0.0
+pytesseract>=0.3.13
+paddlepaddle>=2.6.0,<3.0.0
