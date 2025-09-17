@@ -186,6 +186,7 @@ class MainController:
                     self.logger.warning(f"从全图提取年月信息失败: {str(e)}")
             
             self.logger.info(f"提取到 {len(attendance_data['daily_records'])} 条日常记录")
+            self.logger.info(f"提取到的记录详情:{attendance_data}")
             return attendance_data
             
         except Exception as e:
@@ -568,8 +569,11 @@ class MainController:
                 weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
                 weekday_str = weekdays[weekday_num]
                 
-                # 判断日期类型 (周一到周五为工作日，周六周日为休息日)
-                day_type = '工作日' if weekday_num < 5 else '休息日'
+                # 使用工作日计算器判断日期类型
+                from ..core.workday_calculator import get_day_type, reset_workday_calculator
+                # 确保使用最新的工作日计算器逻辑
+                reset_workday_calculator()
+                day_type = get_day_type(date_str)
                 
                 # 获取该日的数据
                 day_data = daily_data_map.get(day, {})

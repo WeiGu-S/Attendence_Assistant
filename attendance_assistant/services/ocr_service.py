@@ -32,49 +32,49 @@ class OCRService:
             self.logger.info("暂时跳过PaddleOCR初始化，使用备用方案")
             self.ocr_engine = None
             
-            # 原始的PaddleOCR初始化代码（暂时注释掉）
-            """
-            use_gpu = self.config.getboolean('OCR', 'use_gpu', fallback=False)
-            self.logger.info(f"正在初始化OCR引擎 (GPU: {'启用' if use_gpu else '禁用'})")
+            # # 原始的PaddleOCR初始化代码（暂时注释掉）
             
-            # 尝试初始化PaddleOCR，但添加更多的错误处理
-            try:
-                import os
-                # 设置环境变量以避免一些常见问题
-                os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
+            # use_gpu = self.config.getboolean('OCR', 'use_gpu', fallback=False)
+            # self.logger.info(f"正在初始化OCR引擎 (GPU: {'启用' if use_gpu else '禁用'})")
+            
+            # # 尝试初始化PaddleOCR，但添加更多的错误处理
+            # try:
+            #     import os
+            #     # 设置环境变量以避免一些常见问题
+            #     os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
                 
-                self.ocr_engine = PaddleOCR(
-                    use_angle_cls=True,
-                    lang="ch",
-                    use_gpu=use_gpu,
-                    ocr_version='PP-OCRv3',
-                    show_log=False,  # 关闭详细日志输出
-                    det_model_dir=None,  # 使用默认模型
-                    rec_model_dir=None,  # 使用默认模型
-                    cls_model_dir=None   # 使用默认模型
-                )
-                self.logger.info("PaddleOCR引擎初始化成功")
+            #     self.ocr_engine = PaddleOCR(
+            #         use_angle_cls=True,
+            #         lang="ch",
+            #         use_gpu=use_gpu,
+            #         ocr_version='PP-OCRv3',
+            #         show_log=False,  # 关闭详细日志输出
+            #         det_model_dir=None,  # 使用默认模型
+            #         rec_model_dir=None,  # 使用默认模型
+            #         cls_model_dir=None   # 使用默认模型
+            #     )
+            #     self.logger.info("PaddleOCR引擎初始化成功")
                 
-            except Exception as paddle_e:
-                self.logger.warning(f"PaddleOCR初始化失败: {str(paddle_e)}")
-                # 如果GPU初始化失败，尝试CPU模式
-                if use_gpu:
-                    self.logger.info("尝试使用CPU模式初始化PaddleOCR")
-                    try:
-                        self.ocr_engine = PaddleOCR(
-                            use_angle_cls=True,
-                            lang="ch",
-                            use_gpu=False,  # 强制使用CPU
-                            ocr_version='PP-OCRv3',
-                            show_log=False
-                        )
-                        self.logger.info("PaddleOCR引擎(CPU模式)初始化成功")
-                    except Exception as cpu_e:
-                        self.logger.error(f"PaddleOCR CPU模式也失败: {str(cpu_e)}")
-                        self.ocr_engine = None
-                else:
-                    self.ocr_engine = None
-            """
+            # except Exception as paddle_e:
+            #     self.logger.warning(f"PaddleOCR初始化失败: {str(paddle_e)}")
+            #     # 如果GPU初始化失败，尝试CPU模式
+            #     if use_gpu:
+            #         self.logger.info("尝试使用CPU模式初始化PaddleOCR")
+            #         try:
+            #             self.ocr_engine = PaddleOCR(
+            #                 use_angle_cls=True,
+            #                 lang="ch",
+            #                 use_gpu=False,  # 强制使用CPU
+            #                 ocr_version='PP-OCRv3',
+            #                 show_log=False
+            #             )
+            #             self.logger.info("PaddleOCR引擎(CPU模式)初始化成功")
+            #         except Exception as cpu_e:
+            #             self.logger.error(f"PaddleOCR CPU模式也失败: {str(cpu_e)}")
+            #             self.ocr_engine = None
+            #     else:
+            #         self.ocr_engine = None
+            
             
         except Exception as e:
             self.logger.error(f"OCR引擎初始化失败，将使用备用方案: {str(e)}")

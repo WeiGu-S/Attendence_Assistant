@@ -341,6 +341,12 @@ def get_workday_calculator() -> WorkdayCalculator:
     return _workday_calculator
 
 
+def reset_workday_calculator():
+    """重置全局工作日计算器实例"""
+    global _workday_calculator
+    _workday_calculator = None
+
+
 def is_workday(date_str: str) -> bool:
     """
     判断是否为工作日（全局函数）
